@@ -1,0 +1,1 @@
+import {request} from './client';import type {Frame} from '../types/entities';export const list=()=>request<Frame[]>('/frames');export const create=(data:unknown)=>request<Frame>('/frames','POST',data);

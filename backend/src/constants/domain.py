@@ -1,0 +1,4 @@
+MAX_POINTS=500
+MAX_QUEUED=10
+CONVENTION='target=R@source+t'
+UNIT='mm'
