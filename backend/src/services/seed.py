@@ -18,8 +18,13 @@ def seed():
   email=f'{role}@haochuan.test';repo.put('users',{'id':email,'email':email,'name':name,'role':role,'password_hash':hash_password('Fiducial2026!')},insert_only=True)
  d={'id':'ds-fiducials','name':'皓川60组相机—台架标志点','source':'haochuan_fiducials_202611.csv','points':demo_points(),'created_at':now()};repo.put('datasets',d,insert_only=True)
  f={'id':'frame-camera-table','name':'相机A → 台架B / 毫米右手系','dataset_id':d['id'],'source_frame':'CAMERA-A','target_frame':'TABLE-B','unit':'mm','axes':'right-handed xyz','created_at':now()};repo.put('frames',f,insert_only=True)
- snapshot,checksum=lock_snapshot(d,f,.5,400,2405);study={'id':'study-registration','name':'十一月台架标志点稳健配准','dataset_id':d['id'],'frame_id':f['id'],'threshold_mm':.5,'iterations':400,'seed':2405,'snapshot':snapshot,'checksum':checksum,'created_at':now()};repo.put('studies',study,insert_only=True)
+ fit_ids=[p['id'] for p in d['points'] if int(p['id'][2:])<=40];check_ids=[p['id'] for p in d['points'] if int(p['id'][2:])>40]
+ snapshot,checksum=lock_snapshot(d,f,.5,400,2405,fit_ids,check_ids);study={'id':'study-registration','name':'十一月台架标志点稳健配准','dataset_id':d['id'],'frame_id':f['id'],'threshold_mm':.5,'iterations':400,'seed':2405,'snapshot':snapshot,'checksum':checksum,'created_at':now()};repo.put('studies',study,insert_only=True)
+ legacy={'id':'study-legacy-all','name':'历史全量点对配准（升级兼容）','dataset_id':d['id'],'frame_id':f['id'],'threshold_mm':.5,'iterations':400,'seed':2405,'created_at':now()};legacy_snapshot,legacy_checksum=lock_snapshot(d,f,.5,400,2405);legacy.update(snapshot=legacy_snapshot,checksum=legacy_checksum);repo.put('studies',legacy,insert_only=True)
  repo.put('runs',{'id':'run-demo','study_id':study['id'],'status':'completed','result':analyze(snapshot,checksum),'error':'','created_at':now()},insert_only=True)
- repo.put('reviews',{'id':'review-demo','run_id':'run-demo','comment':'毫米与右手轴系锁定；全量/稳健残差、最终内点和detR核验通过。','status':'approved','reviewer':'admin@haochuan.test','created_at':now()},insert_only=True)
+ repo.put('runs',{'id':'run-legacy-all','study_id':legacy['id'],'status':'completed','result':analyze(legacy_snapshot,legacy_checksum),'error':'','created_at':now()},insert_only=True)
+ repo.put('reviews',{'id':'review-demo','run_id':'run-demo','comment':'毫米与右手轴系锁定；拟合点求变换，检查点独立验证；全量/稳健残差、最终内点和detR核验通过。','status':'approved','reviewer':'admin@haochuan.test','created_at':now()},insert_only=True)
+ repo.put('reviews',{'id':'review-legacy','run_id':'run-legacy-all','comment':'历史全量点对研究升级后按原口径复算，复核归档。','status':'approved','reviewer':'admin@haochuan.test','created_at':now()},insert_only=True)
  repo.put('reports',{'id':'report-demo','run_id':'run-demo','review_id':'review-demo','title':'皓川光学台架刚体配准复核册','created_at':now()},insert_only=True)
+ repo.put('reports',{'id':'report-legacy','run_id':'run-legacy-all','review_id':'review-legacy','title':'历史全量点对配准复核册（升级兼容）','created_at':now()},insert_only=True)
  return {t:len(repo.all_rows(t)) for t in ('users','datasets','frames','studies','runs','reviews','reports')}

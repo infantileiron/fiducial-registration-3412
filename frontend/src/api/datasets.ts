@@ -1,1 +1,1 @@
-import {request} from './client';import type {Dataset} from '../types/entities';export const list=()=>request<Dataset[]>('/datasets');export const create=(data:unknown)=>request<Dataset>('/datasets','POST',data);
+import {request} from './client';import type {Dataset,DatasetDetail} from '../types/entities';export const list=()=>request<Dataset[]>('/datasets');export const detail=(id:string)=>request<DatasetDetail>('/datasets/'+id);export const create=(data:unknown)=>request<Dataset>('/datasets','POST',data);

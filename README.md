@@ -1,6 +1,6 @@
 # 皓川光学 · 标志点刚体配准
 
-为10人光学测量组锁定毫米点对和轴系，用全量Kabsch与RANSAC稳健配准复核源到目标的proper旋转平移，逐点说明最终内点和残差。
+为10人光学测量组锁定毫米点对和轴系，按点对编号锁定拟合点与检查点，用全量Kabsch与RANSAC稳健配准复核源到目标的proper旋转平移；检查点独立验证，逐点说明拟合内点、检查点误差与残差。
 
 ## 真实工作场景
 
@@ -32,10 +32,18 @@ docker compose exec -T backend python -m scripts.seed_demo
 2. 09:05 核查每行源xyz/目标xyz，不猜测点对、不把空值当0。
 3. 09:10 声明CAMERA-A→TABLE-B、单位mm、right-handed xyz。
 4. 09:15 固定阈值0.5mm、预算400次、seed2405；保存点对/轴系/参数快照与SHA256。
-5. 09:20 Redis排队，独立Python worker计算全量Kabsch、最小3点RANSAC与内点精炼。
-6. 09:25 在XY/XZ投影对照原始源点、目标与变换后源点；查看8个阈值外点。
-7. 09:30 分开核对全点RMSE、52内点RMSE、detR=+1与精炼稳定性，分析员提审。
-8. 09:40 工程师批准，阅览员下载两组R/t、原始点对、最终残差/分类与快照哈希CSV。
+5. 09:20 按点对编号划分HC001—HC040为拟合点、HC041—HC060为检查点，锁入快照；Redis排队，独立Python worker只用拟合点计算全量Kabsch、最小3点RANSAC与内点精炼。
+6. 09:25 在XY/XZ投影对照原始源点、目标与变换后源点；查看拟合点阈值外点与检查点独立误差。
+7. 09:30 分开核对拟合点全量/内点RMSE、检查点独立RMSE/超阈值数、detR=+1与精炼稳定性，分析员提审。
+8. 09:40 工程师批准，阅览员下载两组R/t、拟合点划分、检查点独立误差、逐点残差/分类与快照哈希CSV。
+
+## 拟合点与检查点划分
+
+创建研究时必须按点对编号指定`fit_ids`（至少3组）与`check_ids`（可为空），两者不重叠且与数据集全部编号一一覆盖；缺号、重号、越界、重叠或拟合点少于3组明确失败（422），不静默丢弃编号。worker只读快照中的划分。拟合点不足3组、或源/目标中心化rank<2（共线/重合）时，创建研究与worker计算都明确失败。
+
+两种配准（全量Kabsch、RANSAC内点精炼）都只用拟合点求R/t；检查点不参与求解、不判内点、不参与精炼，只按最终R/t独立计算全量/稳健残差、RMSE、最大误差与超阈值点数。结果页与批准报告分开两个区块呈现：FIT（拟合点全量RMSE、稳健全量/内点RMSE、最终内点/阈值外）与CHECK（检查点独立RMSE、最大误差、超阈值数）。检查点行不显示内点标签；无检查点时状态为`unverified`（未验证），不得以拟合点残差宣称全部点或泛化精度。
+
+升级兼容：升级前创建的研究快照没有划分，仍按原口径（全部点对同时拟合与判内点）计算、显示与下载CSV；历史报告下载列结构不变。新研究快照包含`fit_ids`/`check_ids`与划分元数据并纳入SHA256，报告CSV增加`validation_mode`、`fit_ids`、`check_ids`、FIT/CHECK分段与`role`列。seed演示同时提供按编号划分的`study-registration`（40拟合/20检查）与历史口径的`study-legacy-all`（60点对）。
 
 ## 输入、轴系与快照
 
@@ -66,9 +74,9 @@ RANSAC阈值[1e-6,100]mm、迭代1—2000、seed在[0,2147483647]；默认0.5mm/
 | 数值 | NumPy2.2.1，Kabsch SVD + 自实现固定seed RANSAC |
 | 异步/数据库 | Redis7.4 / 独立worker / PostgreSQL16 |
 
-80个代码源文件，其中src内76个职责文件。backend/src含routes/controllers/services/models/schemas/middlewares/utils/constants/config；frontend/src含api/stores/types/components/common/hooks/pages/router/utils/constants。迁移DDL在backend/migrations，advisory lock保护首次建表。自然键insert-only seed，重复不新增、不覆盖用户修改；失败记日志不阻断API。
+79个后端src职责文件与36个前端源文件，测试在backend/tests。backend/src含routes/controllers/services/models/schemas/middlewares/utils/constants/config；frontend/src含api/stores/types/components/common/hooks/pages/router/utils/constants。迁移DDL在backend/migrations，advisory lock保护首次建表。自然键insert-only seed，重复不新增、不覆盖用户修改；失败记日志不阻断API。
 
-固定种子2405：60组3D点，模拟旋转Rz(22°)Ry(−11°)、t=(12,−7,4.5)mm、坐标高斯噪声sd=.03mm，前8个目标额外偏移形成离群；算法未接收离群真值标签。默认阈值下最终52内点/8阈值外。所有真实测试/截图/报告仅在批次test-artifacts/gb-2405。
+固定种子2405：60组3D点，模拟旋转Rz(22°)Ry(−11°)、t=(12,−7,4.5)mm、坐标高斯噪声sd=.03mm，前8个目标额外偏移形成离群；算法未接收离群真值标签。历史全量口径下最终52内点/8阈值外；按编号划分后拟合点（HC001—HC040）32内点/8阈值外，检查点20个独立验证。所有真实测试/截图/报告仅在批次test-artifacts/gb-2405。
 
 环境DATABASE_URL、REDIS_URL、JWT_SECRET、SEED_DEMO、TASK_MODE、ARTIFACT_DIR及端口/DB_PASSWORD见.env.example。本地PG/Redis配置后pip install backend/requirements.txt，运行uvicorn src.main:app --reload；前端npm ci && npm run dev，经/api反代。package/lock精确复用已测配套版本，仅改根项目名称。
 

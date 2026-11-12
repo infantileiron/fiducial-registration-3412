@@ -1,9 +1,15 @@
 export type User={email:string;name:string;role:string};export type Point={id:string;source:number[];target:number[]};
 export type Dataset={id:string;name:string;source:string;point_count:number};
 export type Frame={id:string;name:string;dataset_id:string;source_frame:string;target_frame:string;unit:string;axes:string};
-export type Study={id:string;name:string;dataset_id:string;frame_id:string;threshold_mm:number;iterations:number;seed:number;checksum:string};
+export type StudyPartitionMode='by_point_ids'|'legacy_all_points';
+export type Study={id:string;name:string;dataset_id:string;frame_id:string;threshold_mm:number;iterations:number;seed:number;checksum:string;fit_point_count?:number;check_point_count?:number;partition_mode?:StudyPartitionMode};
+export type DatasetDetail=Dataset&{points:Point[]};
 export type Fit={R:number[][];t:number[];predicted:number[][];residuals:number[];rmse:number;det_R:number;orthogonality_error:number;source_rank:number;target_rank:number;reflection_corrected:boolean;note:string};
 export type Robust=Fit&{rmse_all:number;rmse_inliers:number;max_error_all:number;inlier_count:number;outlier_count:number;threshold_mm:number;iterations:number;valid_samples:number;seed:number;inlier_mask:boolean[];inlier_ids:string[];best_sample_ids:string[];fitted_ids:string[];refinement_steps:number;refinement_stable:boolean};
-export type Row=Point&{full_predicted:number[];robust_predicted:number[];full_residual:number;robust_residual:number;inlier:boolean};
-export type Result={rows:Row[];point_count:number;full:Fit;robust:Robust;frame:Frame;threshold_mm:number;iterations:number;seed:number;source:string;convention:string;checksum:string;limitations:string[]};
+export type Row=Point&{role?:'fit'|'check';full_predicted:number[];robust_predicted:number[];full_residual:number;robust_residual:number;inlier:boolean|null;check_threshold_exceeded:boolean|null};
+export type PointMetrics={point_count:number;rmse:number;max_error:number;min_error?:number;threshold_mm:number;threshold_exceeded_count?:number};
+export type CheckMetrics={status:'verified'|'unverified';point_count:number;ids:string[];full:PointMetrics|null;robust:PointMetrics|null;note?:string};
+export type FitMetrics={point_count:number;full:{point_count:number;rmse:number;max_error:number;threshold_mm:number};robust:{point_count:number;rmse_all:number;rmse_inliers:number;inlier_count:number;outlier_count:number;threshold_mm:number}};
+export type Partition={mode:'by_point_ids';fit_ids:string[];check_ids:string[];fit_point_count:number;check_point_count:number;check_status:'verified'|'unverified'};
+export type Result={rows:Row[];point_count:number;partition?:Partition;fit_metrics?:FitMetrics;check_metrics?:CheckMetrics;full:Fit;robust:Robust;frame:Frame;threshold_mm:number;iterations:number;seed:number;source:string;convention:string;checksum:string;limitations:string[]};
 export type Run={id:string;study_id:string;status:string;result:Result;error:string};export type Review={id:string;run_id:string;comment:string;status:string;reviewer:string};export type Report={id:string;run_id:string;review_id:string;title:string};

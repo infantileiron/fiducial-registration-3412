@@ -25,6 +25,8 @@ class RegistrationStudyInput(InputModel):
  threshold_mm:float=Field(default=.5,ge=.000001,le=100)
  iterations:int=Field(default=400,ge=1,le=2000)
  seed:int=Field(default=2405,ge=0,le=2147483647)
+ fit_ids:list[str]=Field(default_factory=list,max_length=500)
+ check_ids:list[str]=Field(default_factory=list,max_length=500)
 class RunInput(InputModel):
  study_id:str
 class ReviewInput(InputModel):
